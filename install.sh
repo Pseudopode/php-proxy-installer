@@ -15,29 +15,6 @@ CONF_FILE=/etc/apache2/sites-available/$SITE
 # Actual unique memory taken up by each is 2-5 MB. Factor in all the "shared memory", and the real average should be about 5 MB
 APACHE_PROCESS_MEM=5000
 
-function check_apache(){
-
-	# check if directory exist
-	if [ -d /etc/apache2/ ]; then
-		echo "Apache2 is already installed on this system. This installation only works on fresh systems"
-		exit
-	fi
-}
-
-function check_www(){
-
-	# check if directory exist
-	if [ -d "/var/www/" ]; then
-		echo "Contents of /var/www/ will be removed."
-		read -p "Do you want to continue? [Y/n] "
-		
-		if [[ $REPLY =~ ^[Yy]$ ]]; then
-			rm -rf /var/www/
-		else
-			exit
-		fi
-	fi
-}
 
 function install_cron(){
 
@@ -52,28 +29,27 @@ function install_cron(){
 function update(){
 
 	# dist upgrades
-	apt-get -qq update
-	apt-get -qq -y upgrade
-}
 
-function install_composer(){
-
-	# install composer
-	curl -sS https://getcomposer.org/installer | php -d suhosin.executor.include.whitelist=phar
-	mv composer.phar /usr/local/bin/composer
-
-	# preserve those command arguments for every composer call
-	alias composer='php -d suhosin.executor.include.whitelist=phar /usr/local/bin/composer'
 }
 
 # should we even run this script?
-check_apache
 
 # does /var/www/ already exist?
-check_www
+# check if directory exist
+if [ -d "/var/www/" ]; then
+	echo "Contents of /var/www/ will be removed."
+	read -p "Do you want to continue? [Y/n] "
+	
+	if [[ $REPLY =~ ^[Yy]$ ]]; then
+		rm -rf /var/www/
+	else
+		exit
+	fi
+fi
 
 ## fresh installations may need to update package locations
-update
+apt-get -qq update
+apt-get -qq -y upgrade
 
 ## git for composer and bc for math operations - vnstat for bandwidth
 apt-get -y install git bc curl vnstat
@@ -102,7 +78,11 @@ a2enmod status
 # we don't need these mods. -f to avoid "WARNING: The following essential module will be disabled"
 a2dismod -f deflate alias rewrite
 
-install_composer
+curl -sS https://getcomposer.org/installer | php -d suhosin.executor.include.whitelist=phar
+mv composer.phar /usr/local/bin/composer
+
+# preserve those command arguments for every composer call
+alias composer='php -d suhosin.executor.include.whitelist=phar /usr/local/bin/composer'
 
 # remove default stuff from apache home directory
 # post 2.4: The default Ubuntu document root is /var/www/html.
